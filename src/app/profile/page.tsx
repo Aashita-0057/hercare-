@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { LANGUAGES } from "@/lib/languages";
 import Guard from "@/components/Guard";
 import { BigCard } from "@/components/ui";
 import AudioButton from "@/components/AudioButton";
 
 export default function ProfilePage() {
-  const { t, user, logout } = useI18n();
+  const { t, user, logout, lang, setLanguage } = useI18n();
   const [leaving, setLeaving] = useState(false);
+  const [switching, setSwitching] = useState<string | null>(null);
 
   const maskPhone = (p: string) => p.replace(/^(\d{2})\d{4}(\d{4})$/, "$1••••$2");
 
@@ -30,6 +32,44 @@ export default function ProfilePage() {
           <p className="text-lg font-extrabold">{user?.name}</p>
           <p className="text-sm text-ink/60">📱 {user?.phone ? maskPhone(user.phone) : "—"}</p>
           <p className="mt-1 text-xs text-ink/50">{t("noEmailStored")}</p>
+        </section>
+
+        {/* Quick language switch: English ↔ Kannada */}
+        <section className="rounded-2xl border-2 border-rose-200 bg-white p-4">
+          <h2 className="font-extrabold">{t("changeLanguage")}</h2>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {LANGUAGES.map((l) => {
+              const isChosen = lang === l.code;
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  disabled={switching !== null}
+                  onClick={async () => {
+                    if (isChosen) return;
+                    setSwitching(l.code);
+                    try {
+                      await setLanguage(l.code);
+                    } finally {
+                      setSwitching(null);
+                    }
+                  }}
+                  aria-pressed={isChosen}
+                  className={`rounded-xl border-2 px-3 py-2.5 text-sm font-bold transition ${
+                    isChosen
+                      ? "border-rose-500 bg-rose-50 text-rose-700"
+                      : "border-sage-200 bg-white text-ink hover:border-rose-300"
+                  }`}
+                >
+                  {l.native}
+                  <span className="ms-1 text-xs text-ink/50">({l.name})</span>
+                  {isChosen && <span className="ms-1">✓</span>}
+                  {switching === l.code && <span className="ms-1">…</span>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-ink/50">{t("languageNote")}</p>
         </section>
 
         <div className="grid gap-3 sm:grid-cols-2">
