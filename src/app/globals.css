@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/*
+  HerCare+ design system — warm, high-contrast, large-touch healthcare UI.
+  Soft rose + sage green + cream/white primary palette.
+  Red / amber reserved for emergency and caution states only.
+*/
+@theme {
+  --color-rose-50: #fdf2f5;
+  --color-rose-100: #fbe5ec;
+  --color-rose-200: #f6c6d4;
+  --color-rose-400: #e2748f;
+  --color-rose-500: #d05a78;
+  --color-rose-600: #b84463;
+  --color-rose-700: #98354f;
+
+  --color-sage-50: #f2f6f1;
+  --color-sage-100: #e2ebdf;
+  --color-sage-200: #c6d9c2;
+  --color-sage-400: #85a97f;
+  --color-sage-500: #6b9166;
+  --color-sage-600: #557a51;
+  --color-sage-700: #436040;
+
+  --color-cream: #fbf7f0;
+  --color-ink: #33302e;
+
+  --color-danger: #d9302f;
+  --color-danger-dark: #b21e1e;
+  --color-caution: #e8930c;
+
+  --font-sans: "Noto Sans", "Nirmala UI", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  --background: var(--color-cream);
+  --foreground: var(--color-ink);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  /* Larger base size for low-literacy / older readers */
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+/* Respect reduced-motion: minimal animations elsewhere */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Visible focus for keyboard navigation */
+:focus-visible {
+  outline: 3px solid var(--color-sage-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* RTL polish for Urdu / Sindhi / Kashmiri */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Large tap targets everywhere on primary controls */
+button,
+a[role="button"],
+input[type="submit"] {
+  min-height: 48px;
+}

@@ -1,0 +1,314 @@
+// HerCare+ data model.
+// Dev database is SQLite (zero-config). To move to PostgreSQL change
+// `provider` to "postgresql" and DATABASE_URL — models are portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  name               String
+  phone              String   @unique
+  languageCode       String   @default("en")
+  dialect            String?
+  pinHash            String? // Daily Wellness Journal 4-digit PIN
+  pinSalt            String?
+  previousDailySpend Float?   // savings calculator input (₹)
+  createdAt          DateTime @default(now())
+
+  sessions         Session[]
+  journalSessions  JournalSession[]
+  periodLogs       PeriodLog[]
+  pregnancyProfiles PregnancyProfile[]
+  maternalRecords  MaternalRecord[]
+  infantLogs       InfantLog[]
+  appointments     Appointment[]
+  medications      MedicationReminder[]
+  journalDays      JournalDay[]
+  cravingLogs      CravingLog[]
+  savedFacilities  SavedFacility[]
+  healthEntries    HealthEntry[]
+}
+
+// OTP codes are stored hashed with expiry + attempt tracking.
+model OtpCode {
+  id                  String   @id @default(cuid())
+  phone               String
+  codeHash            String
+  expiresAt           DateTime
+  attempts            Int      @default(0)
+  verified            Boolean  @default(false)
+  consumed            Boolean  @default(false)
+  resendAvailableAt   DateTime
+  createdAt           DateTime @default(now())
+
+  @@index([phone])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Short-lived journal unlock, separate from the main auth session.
+model JournalSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Doctors, hospitals, PHCs, NGOs, rehabilitation centres.
+model Facility {
+  id                  String  @id @default(cuid())
+  name                String
+  kind                String // doctor | hospital | clinic | phc | chc | rehab | psychiatric | counsellor | ngo | support_centre | legal_aid
+  ownership           String  @default("unknown") // government | private | ngo | unknown
+  doctorName          String?
+  isFemaleDoctor      Boolean @default(false)
+  femaleDoctorAvail   Boolean?
+  specialty           String?
+  qualifications      String?
+  address             String
+  state               String
+  district            String
+  block               String?
+  village             String?
+  phone               String?
+  feeText             String // "Free" | "₹200" | "Fee not verified"
+  feeVerified         Boolean @default(false)
+  freeConfirmed       Boolean @default(false)
+  openingHours        String?
+  services            String @default("[]") // JSON array of strings
+  languagesSpoken     String @default("[]") // JSON array of strings
+  photoUrl            String? // null => neutral placeholder
+  photoPermission     String? // licence/permission note
+  mapUrl              String?
+  hasWomenWard        Boolean @default(false)
+  confidentialityInfo String?
+  isSample            Boolean @default(true) // true => demo data, never presented as real
+  lastVerifiedAt      DateTime?
+  lat                 Float?
+  lng                 Float?
+
+  verifications Verification[]
+  saves         SavedFacility[]
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  facilityId String
+  field      String
+  value      String
+  verifiedBy String
+  verifiedAt DateTime @default(now())
+
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+}
+
+model SavedFacility {
+  id         String   @id @default(cuid())
+  userId     String
+  facilityId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, facilityId])
+}
+
+model Helpline {
+  id          String  @id @default(cuid())
+  name        String
+  number      String
+  description String
+  isEmergency Boolean @default(false)
+  availability String?
+  categories  String  @default("[]") // JSON: emergency | women | child | mental-health | addiction
+}
+
+model Article {
+  id       String @id @default(cuid())
+  slug     String @unique
+  category String // lifecycle | preventive | wellness | myths | recovery | safety | dashboard
+  icon     String @default("book")
+
+  translations ArticleTranslation[]
+}
+
+model ArticleTranslation {
+  id       String  @id @default(cuid())
+  articleId String
+  lang     String
+  title    String
+  summary  String
+  body     String  // markdown-lite sections separated by \n\n
+  whenToSeek String?
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, lang])
+}
+
+model RecoveryStory {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  pseudonym   String
+  consentOnFile Boolean @default(false)
+  isIllustrative Boolean @default(true) // true => written for the demo, not a real person's testimony
+  publishedAt DateTime @default(now())
+}
+
+model PeriodLog {
+  id        String   @id @default(cuid())
+  userId    String
+  startDate DateTime
+  endDate   DateTime?
+  symptoms  String @default("[]") // JSON array
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startDate])
+}
+
+model PregnancyProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String   @default("Pregnancy")
+  eddDate   DateTime?
+  status    String   @default("antenatal") // antenatal | postpartum
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MaternalRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime
+  bpHigh     Int?
+  bpLow      Int?
+  weightKg   Float?
+  ironTaken  Boolean?
+  notes      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model InfantLog {
+  id       String   @id @default(cuid())
+  userId   String
+  babyLabel String  @default("Baby")
+  type     String // feeding | sleep | vaccine | growth | appointment
+  value    String
+  takenAt  DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, takenAt])
+}
+
+model Appointment {
+  id       String   @id @default(cuid())
+  userId   String
+  title    String
+  forWhom  String   @default("mother") // mother | infant | self
+  date     DateTime
+  time     String?
+  notes    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model MedicationReminder {
+  id     String   @id @default(cuid())
+  userId String
+  name   String
+  dose   String?
+  times  String   @default("[]") // JSON array like ["08:00"]
+  startDate DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model JournalDay {
+  id      String   @id @default(cuid())
+  userId  String
+  date    DateTime
+  status  String // sober | difficult
+  note    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model CravingLog {
+  id        String   @id @default(cuid())
+  userId    String
+  icon      String // cravings | anxiety | headache | bodypain | sleep | mood | other
+  level     Int      @default(1) // 1..5
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model IncidentReport {
+  id              String   @id @default(cuid())
+  userId          String?
+  category        String
+  description     String
+  occurredAt      String?
+  location        String?
+  contact         String?
+  preferredMethod String   @default("any")
+  consented       Boolean  @default(false)
+  status          String   @default("received")
+  createdAt       DateTime @default(now())
+}
+
+model HealthEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  symptoms  String // JSON array of symptom ids
+  level     String // green | yellow | red
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
